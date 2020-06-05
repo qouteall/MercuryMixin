@@ -73,7 +73,7 @@ public class MixinRemapperVisitor extends ASTVisitor {
         if (mixin == null) return;
 
         // todo: support multiple targets properly
-        final ClassMapping<?, ?> target = this.mappings.computeClassMapping(mixin.getTargets()[0].getBinaryName()).orElse(null);
+        final ClassMapping<?, ?> target = this.mappings.computeClassMapping(mixin.getTargetBinaryName()).orElse(null);
         if (target == null) return;
 
         for (final IAnnotationBinding annotation : binding.getAnnotations()) {
@@ -108,8 +108,7 @@ public class MixinRemapperVisitor extends ASTVisitor {
         if (mixin == null) return true;
 
         // todo: support multiple targets properly
-        final ITypeBinding targetClass = mixin.getTargets()[0];
-        final ClassMapping<?, ?> target = this.mappings.computeClassMapping(targetClass.getBinaryName()).orElse(null);
+        final ClassMapping<?, ?> target = this.mappings.computeClassMapping(mixin.getTargetBinaryName()).orElse(null);
         if (target == null) return true;
         target.complete(this.inheritanceProvider, declaringClass);
 

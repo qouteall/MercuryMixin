@@ -103,6 +103,18 @@ public class MixinClass {
     }
 
     /**
+     * Gets the Mixin target class' binary name
+     *
+     * @return The Mixin target class' binary name
+     */
+    public String getTargetBinaryName() {
+        if (targets.length > 0) {
+            return targets[0].getBinaryName();
+        }
+        return privateTargets[0].replace('.','/');
+    }
+
+    /**
      * Gets the <em>private</em> targets of the mixin.
      *
      * @return The private targets
