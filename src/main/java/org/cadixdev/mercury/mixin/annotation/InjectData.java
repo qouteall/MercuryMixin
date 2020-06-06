@@ -8,6 +8,7 @@ package org.cadixdev.mercury.mixin.annotation;
 
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
+import org.eclipse.jdt.core.dom.NormalAnnotation;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -35,11 +36,19 @@ public class InjectData {
                 }
             }
             else if (Objects.equals("at", pair.getName())) {
-                final Object[] raw = (Object[]) pair.getValue();
+                Object value = pair.getValue();
 
-                atData = new AtData[raw.length];
-                for (int i = 0; i < raw.length; i++) {
-                    atData[i] = AtData.from((IAnnotationBinding) raw[i]);
+                if (value instanceof IAnnotationBinding) {
+                    atData = new AtData[1];
+                    atData[0] = AtData.from(((IAnnotationBinding) value));
+                }
+                else {
+                    final Object[] raw = (Object[]) value;
+
+                    atData = new AtData[raw.length];
+                    for (int i = 0; i < raw.length; i++) {
+                        atData[i] = AtData.from((IAnnotationBinding) raw[i]);
+                    }
                 }
             }
         }
