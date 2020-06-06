@@ -397,7 +397,7 @@ public class MixinRemapperVisitor extends ASTVisitor {
     private void remapPrivateMixinTargetLiteral(AST ast, StringLiteral literal) {
         String className = literal.getLiteralValue().replace('.', '/');
         if (!className.isEmpty()) {
-            ClassMapping<?, ?> classMapping = mappings.computeClassMapping(className)
+            ClassMapping<?, ?> classMapping = mappings.getTopLevelClassMapping(className)
                 .orElse(null);
             if (classMapping != null) {
                 String remappedClassName = classMapping.getFullDeobfuscatedName();
