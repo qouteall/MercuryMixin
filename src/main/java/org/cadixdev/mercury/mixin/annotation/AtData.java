@@ -19,15 +19,28 @@ import java.util.Optional;
  */
 public class AtData {
 
+    public static enum InjectionPoint {
+        INVOKE, FIELD, NEW, OTHER
+    }
+
     // @At(value = "", target = "")
     public static AtData from(final IAnnotationBinding binding) {
-        String injectionPoint = null;
+        InjectionPoint injectionPoint = InjectionPoint.OTHER;
         String className = null;
         MethodTarget target = null;
 
         for (final IMemberValuePairBinding pair : binding.getDeclaredMemberValuePairs()) {
             if (Objects.equals("value", pair.getName())) {
-                injectionPoint = (String) pair.getValue();
+                String atType = (String) pair.getValue();
+                if (Objects.equals("INVOKE", atType)) {
+                    injectionPoint = InjectionPoint.INVOKE;
+                }
+                else if (Objects.equals("FIELD", atType)) {
+                    injectionPoint = InjectionPoint.FIELD;
+                }
+                else if (Objects.equals("NEW", atType)) {
+                    injectionPoint = InjectionPoint.NEW;
+                }
             }
             else if (Objects.equals("target", pair.getName())) {
                 final String combined = (String) pair.getValue();
@@ -47,17 +60,17 @@ public class AtData {
         return new AtData(injectionPoint, className, target);
     }
 
-    private final String injectionPoint;
+    private final InjectionPoint injectionPoint;
     private final String className;
     private final MethodTarget target;
 
-    public AtData(final String injectionPoint, final String className, final MethodTarget target) {
+    public AtData(InjectionPoint injectionPoint, String className, MethodTarget target) {
         this.injectionPoint = injectionPoint;
         this.className = className;
         this.target = target;
     }
 
-    public String getInjectionPoint() {
+    public InjectionPoint getInjectionPoint() {
         return this.injectionPoint;
     }
 
