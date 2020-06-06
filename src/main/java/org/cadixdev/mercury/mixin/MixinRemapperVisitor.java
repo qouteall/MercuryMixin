@@ -47,6 +47,7 @@ import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.StringLiteral;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -361,6 +362,47 @@ public class MixinRemapperVisitor extends ASTVisitor {
         }
 
         return new MethodSignature(name, new MethodDescriptor(parameters, convertType(binding.getReturnType())));
+    }
+
+    private void remapPrivateMixinTarget(
+        final AST ast, final TypeDeclaration typeDeclaration, final ITypeBinding typeBinding
+    ) {
+        IAnnotationBinding[] annotations = typeBinding.getAnnotations();
+        List modifiers = typeDeclaration.modifiers();
+        for (Object modifier : modifiers) {
+            if (modifier instanceof NormalAnnotation) {
+                NormalAnnotation normalAnnotation = (NormalAnnotation) modifier;
+                for (Object raw : normalAnnotation.values()) {
+                    MemberValuePair pair = (MemberValuePair) raw;
+                    if ("targets".equals(pair.getName().getIdentifier())) {
+                        StringLiteral literal = ((StringLiteral) pair.getValue());
+                        String className = literal.getLiteralValue().replace('.', '/');
+                        if (!className.isEmpty()) {
+                            ClassMapping<?, ?> classMapping = mappings.getClassMapping(className)
+                                .orElse(null);
+                            if (classMapping != null) {
+                                String remappedClassName = classMapping.getFullDeobfuscatedName();
+                                replaceStringLiteral(
+                                    ast, context, literal,
+                                    remappedClassName.replace('/', '.')
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean visit(final TypeDeclaration node) {
+        remapPrivateMixinTarget(
+            node.getAST(),
+            node,
+            node.resolveBinding()
+        );
+
+        return true;
     }
 
 }
