@@ -6,10 +6,7 @@
 
 package org.cadixdev.mercury.mixin;
 
-import static org.cadixdev.mercury.mixin.util.MixinConstants.ACCESSOR_CLASS;
-import static org.cadixdev.mercury.mixin.util.MixinConstants.INJECT_CLASS;
-import static org.cadixdev.mercury.mixin.util.MixinConstants.OVERWRITE_CLASS;
-import static org.cadixdev.mercury.mixin.util.MixinConstants.SHADOW_CLASS;
+import static org.cadixdev.mercury.mixin.util.MixinConstants.*;
 import static org.cadixdev.mercury.util.BombeBindings.convertType;
 
 import org.cadixdev.bombe.analysis.InheritanceProvider;
@@ -93,10 +90,10 @@ public class MixinRemapperVisitor extends ASTVisitor {
 
                 // Copy de-obfuscation mapping
                 mixin.copyFieldMapping(
-                        target,
-                        mixinSignature,
-                        targetSignature,
-                        deobfName -> usedPrefix ? shadow.prefix(deobfName) : deobfName
+                    target,
+                    mixinSignature,
+                    targetSignature,
+                    deobfName -> usedPrefix ? shadow.prefix(deobfName) : deobfName
                 );
             }
         }
@@ -133,10 +130,10 @@ public class MixinRemapperVisitor extends ASTVisitor {
 
                 // Copy de-obfuscation mapping
                 mixin.copyMethodMapping(
-                        target,
-                        mixinSignature,
-                        targetSignature,
-                        deobfName -> usedPrefix ? shadow.prefix(deobfName) : deobfName
+                    target,
+                    mixinSignature,
+                    targetSignature,
+                    deobfName -> usedPrefix ? shadow.prefix(deobfName) : deobfName
                 );
             }
 
@@ -155,18 +152,18 @@ public class MixinRemapperVisitor extends ASTVisitor {
                 final MethodSignature mixinSignature = BombeBindings.convertSignature(binding);
 
                 final boolean isGetter = mixinSignature.getDescriptor().getParamTypes().size() == 0 &&
-                        !Objects.equals(VoidType.INSTANCE, mixinSignature.getDescriptor().getReturnType());
+                    !Objects.equals(VoidType.INSTANCE, mixinSignature.getDescriptor().getReturnType());
                 final boolean isSetter = mixinSignature.getDescriptor().getParamTypes().size() == 1 &&
-                        Objects.equals(VoidType.INSTANCE, mixinSignature.getDescriptor().getReturnType());
+                    Objects.equals(VoidType.INSTANCE, mixinSignature.getDescriptor().getReturnType());
 
                 // Inflect target from method name, if not set in annotation
                 final boolean inflect = accessor.getTarget().isEmpty();
                 final String targetName = inflect ? name.getName() : accessor.getTarget();
                 final FieldSignature targetSignature = new FieldSignature(targetName, isGetter ?
-                        // For getters, use the return type
-                        (FieldType) mixinSignature.getDescriptor().getReturnType() :
-                        // For setters, use the first argument in the method
-                        mixinSignature.getDescriptor().getParamTypes().get(0)
+                    // For getters, use the return type
+                    (FieldType) mixinSignature.getDescriptor().getReturnType() :
+                    // For setters, use the first argument in the method
+                    mixinSignature.getDescriptor().getParamTypes().get(0)
                 );
 
                 // Get mapping of target field
@@ -204,8 +201,8 @@ public class MixinRemapperVisitor extends ASTVisitor {
                 }
             }
 
-            // @Inject
-            if (Objects.equals(INJECT_CLASS, annotationType)) {
+            // @Inject @Redirect etc.
+            if (isConventionalInjectionType(annotationType)) {
                 final InjectData inject = InjectData.from(annotation);
 
                 // Find target method(s?)
@@ -213,26 +210,7 @@ public class MixinRemapperVisitor extends ASTVisitor {
                 final String[] method = new String[inject.getMethodTargets().length];
                 for (int j = 0; j < inject.getMethodTargets().length; j++) {
                     final MethodTarget targetMethod = inject.getMethodTargets()[j];
-                    final String targetMethodName = targetMethod.getMethodName();
-                    String deobf = targetMethodName + targetMethod.getMethodDescriptor()
-                            .map(MethodDescriptor::toString)
-                            .orElse("");
-
-                    for (final MethodMapping mapping : target.getMethodMappings()) {
-                        if (Objects.equals(targetMethodName, mapping.getObfuscatedName()) &&
-                                targetMethod.getMethodDescriptor()
-                                        .map(d -> d.equals(mapping.getDescriptor()))
-                                        .orElse(true)) {
-                            final MethodSignature deobfuscatedSignature = mapping.getDeobfuscatedSignature();
-                            if (targetMethod.getMethodDescriptor().isPresent()) {
-                                deobf = deobfuscatedSignature.getName() + deobfuscatedSignature.getDescriptor().toString();
-                            }
-                            else {
-                                deobf = deobfuscatedSignature.getName();
-                            }
-                            break;
-                        }
-                    }
+                    String deobf = remapMethodTarget(target, targetMethod);
 
                     method[j] = deobf;
                 }
@@ -285,6 +263,48 @@ public class MixinRemapperVisitor extends ASTVisitor {
         }
 
         return true;
+    }
+
+    private static boolean isConventionalInjectionType(String annotationType) {
+        return Objects.equals(INJECT_CLASS, annotationType)
+            || Objects.equals(REDIRECT_CLASS, annotationType)
+            || Objects.equals(MODIFY_VARIABLE_CLASS, annotationType)
+            || Objects.equals(MODIFY_ARG_CLASS, annotationType)
+            || Objects.equals(MODIFY_CONSTANT_CLASS, annotationType);
+    }
+
+    private String remapMethodTarget(ClassMapping<?, ?> classMapping, MethodTarget targetMethod) {
+        if (targetMethod.isConstructor()) {
+            MethodDescriptor descriptor = targetMethod.getMethodDescriptor().orElse(null);
+            if (descriptor == null) {
+                return "<init>";
+            }
+            MethodDescriptor deobfuscated = mappings.deobfuscate(descriptor);
+            return targetMethod.getMethodClass().map(c -> c + ";").orElse("")
+                + "<init>" + deobfuscated.toString();
+        }
+
+        final String targetMethodName = targetMethod.getMethodName();
+        String deobf = targetMethodName + targetMethod.getMethodDescriptor()
+            .map(MethodDescriptor::toString)
+            .orElse("");
+
+        for (final MethodMapping mapping : classMapping.getMethodMappings()) {
+            if (Objects.equals(targetMethodName, mapping.getObfuscatedName()) &&
+                targetMethod.getMethodDescriptor()
+                    .map(d -> d.equals(mapping.getDescriptor()))
+                    .orElse(true)) {
+                final MethodSignature deobfuscatedSignature = mapping.getDeobfuscatedSignature();
+                if (targetMethod.getMethodDescriptor().isPresent()) {
+                    deobf = deobfuscatedSignature.getName() + deobfuscatedSignature.getDescriptor().toString();
+                }
+                else {
+                    deobf = deobfuscatedSignature.getName();
+                }
+                break;
+            }
+        }
+        return deobf;
     }
 
     private void remapAtAnnotation(final AST ast, final ITypeBinding declaringClass, final NormalAnnotation atAnnotation, final AtData atDatum) {
@@ -380,7 +400,7 @@ public class MixinRemapperVisitor extends ASTVisitor {
                     MemberValuePair pair = (MemberValuePair) raw;
                     if ("targets".equals(pair.getName().getIdentifier())) {
                         Expression targets = pair.getValue();
-                        if(targets instanceof StringLiteral){
+                        if (targets instanceof StringLiteral) {
                             remapPrivateMixinTargetLiteral(ast, ((StringLiteral) targets));
                         }
                         else if (targets instanceof ArrayInitializer) {

@@ -19,21 +19,35 @@ public class MethodTarget {
 
     private final String methodName;
     private final MethodDescriptor methodDescriptor;
+    private final String methodClass;
 
     public MethodTarget(final String methodName) {
         this.methodName = methodName;
         this.methodDescriptor = null;
+        this.methodClass = null;
     }
 
-    public MethodTarget(final String methodName, final MethodDescriptor methodDescriptor) {
+    public MethodTarget(final String methodName, final MethodDescriptor methodDescriptor, final String methodClass) {
         this.methodName = methodName;
         this.methodDescriptor = methodDescriptor;
+        this.methodClass = methodClass;
     }
 
     public static MethodTarget of(final String target) {
-        int index = target.indexOf('(');
-        if (index >= 0) {
-            return new MethodTarget(target.substring(0, index), MethodDescriptor.of(target.substring(index)));
+        int braceIndex = target.indexOf('(');
+        if (braceIndex >= 0) {
+            String front = target.substring(0, braceIndex);
+            int semiColonIndex = front.indexOf(';');
+            if (semiColonIndex == -1) {
+                return new MethodTarget(front, MethodDescriptor.of(target.substring(braceIndex)), null);
+            }
+            else {
+                return new MethodTarget(
+                    front.substring(semiColonIndex + 1, braceIndex),
+                    MethodDescriptor.of(target.substring(braceIndex)),
+                    front.substring(0, semiColonIndex)
+                );
+            }
         }
         return new MethodTarget(target);
     }
@@ -42,16 +56,24 @@ public class MethodTarget {
         return this.methodName;
     }
 
+    public Optional<String> getMethodClass() {
+        return Optional.ofNullable(methodClass);
+    }
+
     public Optional<MethodDescriptor> getMethodDescriptor() {
         return Optional.ofNullable(this.methodDescriptor);
+    }
+
+    public boolean isConstructor() {
+        return methodName.equals("<init>");
     }
 
     @Override
     public String toString() {
         return "MethodTarget{" +
-                "methodName='" + this.methodName + '\'' +
-                ", methodDescriptor=" + this.methodDescriptor +
-                '}';
+            "methodName='" + this.methodName + '\'' +
+            ", methodDescriptor=" + this.methodDescriptor +
+            '}';
     }
 
 }
