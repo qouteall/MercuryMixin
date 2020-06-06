@@ -36,6 +36,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.ArrayInitializer;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -375,21 +376,35 @@ public class MixinRemapperVisitor extends ASTVisitor {
                 for (Object raw : normalAnnotation.values()) {
                     MemberValuePair pair = (MemberValuePair) raw;
                     if ("targets".equals(pair.getName().getIdentifier())) {
-                        StringLiteral literal = ((StringLiteral) pair.getValue());
-                        String className = literal.getLiteralValue().replace('.', '/');
-                        if (!className.isEmpty()) {
-                            ClassMapping<?, ?> classMapping = mappings.getClassMapping(className)
-                                .orElse(null);
-                            if (classMapping != null) {
-                                String remappedClassName = classMapping.getFullDeobfuscatedName();
-                                replaceStringLiteral(
-                                    ast, context, literal,
-                                    remappedClassName.replace('/', '.')
-                                );
+                        Expression targets = pair.getValue();
+                        if(targets instanceof StringLiteral){
+                            remapPrivateMixinTargetLiteral(ast, ((StringLiteral) targets));
+                        }
+                        else if (targets instanceof ArrayInitializer) {
+                            List expressions = ((ArrayInitializer) targets).expressions();
+                            for (Object expression : expressions) {
+                                if (expression instanceof StringLiteral) {
+                                    remapPrivateMixinTargetLiteral(ast, (StringLiteral) expression);
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private void remapPrivateMixinTargetLiteral(AST ast, StringLiteral literal) {
+        String className = literal.getLiteralValue().replace('.', '/');
+        if (!className.isEmpty()) {
+            ClassMapping<?, ?> classMapping = mappings.computeClassMapping(className)
+                .orElse(null);
+            if (classMapping != null) {
+                String remappedClassName = classMapping.getFullDeobfuscatedName();
+                replaceStringLiteral(
+                    ast, context, literal,
+                    remappedClassName.replace('/', '.')
+                );
             }
         }
     }
