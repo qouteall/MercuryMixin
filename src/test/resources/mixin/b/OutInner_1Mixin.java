@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(targets = "real/OutInner$real/Outer")
+@Mixin(targets = "real.OutInner$real.Outer")
 public abstract class OutInner_1Mixin {
 
 }
