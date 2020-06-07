@@ -399,6 +399,9 @@ public class MixinRemapperVisitor extends ASTVisitor {
         if (!className.isEmpty()) {
             ClassMapping<?, ?> classMapping = mappings.getTopLevelClassMapping(className)
                 .orElse(null);
+            if (classMapping == null) {
+                classMapping = mappings.computeClassMapping(className).orElse(null);
+            }
             if (classMapping != null) {
                 String remappedClassName = classMapping.getFullDeobfuscatedName();
                 replaceStringLiteral(
