@@ -4,6 +4,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
+package obf;
+
 public class OutInner {
     public static void main(String[] args) {
         Runnable runnable = new Runnable() {
