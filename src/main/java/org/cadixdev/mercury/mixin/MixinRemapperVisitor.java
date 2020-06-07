@@ -377,7 +377,7 @@ public class MixinRemapperVisitor extends ASTVisitor {
                     MemberValuePair pair = (MemberValuePair) raw;
                     if ("targets".equals(pair.getName().getIdentifier())) {
                         Expression targets = pair.getValue();
-                        if(targets instanceof StringLiteral){
+                        if (targets instanceof StringLiteral){
                             remapPrivateMixinTargetLiteral(ast, ((StringLiteral) targets));
                         }
                         else if (targets instanceof ArrayInitializer) {
@@ -394,21 +394,19 @@ public class MixinRemapperVisitor extends ASTVisitor {
         }
     }
 
-    private void remapPrivateMixinTargetLiteral(AST ast, StringLiteral literal) {
-        String className = literal.getLiteralValue().replace('.', '/');
-        if (!className.isEmpty()) {
-            ClassMapping<?, ?> classMapping = mappings.getTopLevelClassMapping(className)
-                .orElse(null);
-            if (classMapping == null) {
-                classMapping = mappings.getClassMapping(className).orElse(null);
-            }
-            if (classMapping != null) {
-                String remappedClassName = classMapping.getFullDeobfuscatedName();
-                replaceStringLiteral(
+    private void remapPrivateMixinTargetLiteral(final AST ast, final StringLiteral literal) {
+        final String className = literal.getLiteralValue().replace('.', '/');
+        if (className.isEmpty()) return;
+        ClassMapping<?, ?> classMapping = mappings.getTopLevelClassMapping(className).orElse(null);
+        if (classMapping == null) {
+            classMapping = mappings.getClassMapping(className).orElse(null);
+        }
+        if (classMapping != null) {
+            final String remappedClassName = classMapping.getFullDeobfuscatedName();
+            replaceStringLiteral(
                     ast, context, literal,
                     remappedClassName
-                );
-            }
+            );
         }
     }
 
