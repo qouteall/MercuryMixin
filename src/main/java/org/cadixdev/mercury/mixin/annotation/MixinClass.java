@@ -108,10 +108,10 @@ public class MixinClass {
      * @return The Mixin target class' binary name
      */
     public String getTargetBinaryName() {
-        if (targets.length > 0) {
-            return targets[0].getBinaryName();
+        if (this.targets.length > 0) {
+            return this.targets[0].getBinaryName();
         }
-        return privateTargets[0].replace('.','/');
+        return this.privateTargets[0].replace('.','/');
     }
 
     /**
