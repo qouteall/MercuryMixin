@@ -39,6 +39,7 @@ import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -65,6 +66,55 @@ public class MixinRemapperVisitor extends ASTVisitor {
         this.context = context;
         this.mappings = mappings;
         this.inheritanceProvider = MercuryInheritanceProvider.get(context.getMercury());
+    }
+
+    private void remapPrivateMixinTarget(final AST ast, final TypeDeclaration typeDeclaration, final ITypeBinding binding) {
+        for (final Object rawModifier : typeDeclaration.modifiers()) {
+            final IExtendedModifier modifier = (IExtendedModifier) rawModifier;
+            if (!modifier.isAnnotation()) return;
+            final Annotation rawAnnot = (Annotation) modifier;
+
+            if (rawAnnot.isNormalAnnotation()) {
+                final NormalAnnotation annot = (NormalAnnotation) rawAnnot;
+
+                for (final Object raw : annot.values()) {
+                    final MemberValuePair pair = (MemberValuePair) raw;
+
+                    if (Objects.equals("targets", pair.getName().getIdentifier())) {
+                        final Expression targets = pair.getValue();
+
+                        if (targets instanceof StringLiteral) {
+                            final StringLiteral target = (StringLiteral) targets;
+                            this.remapPrivateMixinTargetLiteral(ast, target);
+                        }
+                        else if (targets instanceof ArrayInitializer) {
+                            final ArrayInitializer target = (ArrayInitializer) targets;
+
+                            for (final Object expression : target.expressions()) {
+                                if (expression instanceof StringLiteral) {
+                                    this.remapPrivateMixinTargetLiteral(ast, (StringLiteral) expression);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void remapPrivateMixinTargetLiteral(final AST ast, final StringLiteral literal) {
+        final String className = literal.getLiteralValue().replace('.', '/');
+        if (className.isEmpty()) return;
+
+        ClassMapping<?, ?> classMapping = this.mappings.getTopLevelClassMapping(className).orElse(null);
+        if (classMapping == null) {
+            classMapping = this.mappings.getClassMapping(className).orElse(null);
+        }
+
+        if (classMapping != null) {
+            final String remappedClassName = classMapping.getFullDeobfuscatedName();
+            replaceStringLiteral(ast, this.context, literal, remappedClassName);
+        }
     }
 
     void remapField(final SimpleName node, final IVariableBinding binding) {
@@ -344,6 +394,12 @@ public class MixinRemapperVisitor extends ASTVisitor {
         return false;
     }
 
+    @Override
+    public boolean visit(final TypeDeclaration node) {
+        this.remapPrivateMixinTarget(node.getAST(), node, node.resolveBinding());
+        return true;
+    }
+
     private static void replaceStringLiteral(final AST ast, final RewriteContext context, final StringLiteral original, final String replacement) {
         final StringLiteral replacementLiteral = ast.newStringLiteral();
         replacementLiteral.setLiteralValue(replacement);
@@ -363,62 +419,6 @@ public class MixinRemapperVisitor extends ASTVisitor {
         }
 
         return new MethodSignature(name, new MethodDescriptor(parameters, convertType(binding.getReturnType())));
-    }
-
-    private void remapPrivateMixinTarget(
-        final AST ast, final TypeDeclaration typeDeclaration, final ITypeBinding typeBinding
-    ) {
-        IAnnotationBinding[] annotations = typeBinding.getAnnotations();
-        List modifiers = typeDeclaration.modifiers();
-        for (Object modifier : modifiers) {
-            if (modifier instanceof NormalAnnotation) {
-                NormalAnnotation normalAnnotation = (NormalAnnotation) modifier;
-                for (Object raw : normalAnnotation.values()) {
-                    MemberValuePair pair = (MemberValuePair) raw;
-                    if ("targets".equals(pair.getName().getIdentifier())) {
-                        Expression targets = pair.getValue();
-                        if (targets instanceof StringLiteral){
-                            remapPrivateMixinTargetLiteral(ast, ((StringLiteral) targets));
-                        }
-                        else if (targets instanceof ArrayInitializer) {
-                            List expressions = ((ArrayInitializer) targets).expressions();
-                            for (Object expression : expressions) {
-                                if (expression instanceof StringLiteral) {
-                                    remapPrivateMixinTargetLiteral(ast, (StringLiteral) expression);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private void remapPrivateMixinTargetLiteral(final AST ast, final StringLiteral literal) {
-        final String className = literal.getLiteralValue().replace('.', '/');
-        if (className.isEmpty()) return;
-        ClassMapping<?, ?> classMapping = mappings.getTopLevelClassMapping(className).orElse(null);
-        if (classMapping == null) {
-            classMapping = mappings.getClassMapping(className).orElse(null);
-        }
-        if (classMapping != null) {
-            final String remappedClassName = classMapping.getFullDeobfuscatedName();
-            replaceStringLiteral(
-                    ast, context, literal,
-                    remappedClassName
-            );
-        }
-    }
-
-    @Override
-    public boolean visit(final TypeDeclaration node) {
-        remapPrivateMixinTarget(
-            node.getAST(),
-            node,
-            node.resolveBinding()
-        );
-
-        return true;
     }
 
 }
