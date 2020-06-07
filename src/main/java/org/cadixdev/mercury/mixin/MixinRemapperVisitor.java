@@ -400,13 +400,13 @@ public class MixinRemapperVisitor extends ASTVisitor {
             ClassMapping<?, ?> classMapping = mappings.getTopLevelClassMapping(className)
                 .orElse(null);
             if (classMapping == null) {
-                classMapping = mappings.computeClassMapping(className).orElse(null);
+                classMapping = mappings.getClassMapping(className).orElse(null);
             }
             if (classMapping != null) {
                 String remappedClassName = classMapping.getFullDeobfuscatedName();
                 replaceStringLiteral(
                     ast, context, literal,
-                    remappedClassName.replace('/', '.')
+                    remappedClassName
                 );
             }
         }
